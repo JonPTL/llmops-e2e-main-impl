@@ -1,0 +1,26 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Login
+        run: docker-compose up -d && docker login localhost:5000
+
+      - name: Build Docker image
+        run: docker build -t fastapi-app:latest .
+
+      - name: Run Docker image
+        run: docker run -p 8000:8000 fastapi-app 
+
+      - name: Push Docker image
+        run: docker push localhost:5000/my-fancy-app:latest
