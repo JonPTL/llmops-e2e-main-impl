@@ -1,0 +1,24 @@
+name: Scan
+
+on:
+  workflow_run:
+    workflows: ["Build and Deploy"]
+    types: [completed]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Docker Image
+        uses: actions/download-artifact@v3
+        with:
+          name: docker image
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Load Docker Image
+        run: |
+          docker load -i fastapi-app.tar
+          docker images
+
+      - name: Scan with Trivy
+        run: trivy image fastapi-app:latest
