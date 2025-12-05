@@ -44,7 +44,7 @@ jobs:
 
       - name: Run Docker image
         run: | 
-          docker run -d -p 8000:8000 fastapi-app
+          docker run -d -p 8000:8000 --name fastapi-app fastapi-app
           docker ps
           docker logs fastapi-app
         timeout-minutes: 30
