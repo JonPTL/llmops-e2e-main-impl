@@ -27,6 +27,8 @@ jobs:
       - name: Build Docker image
         run: |
           echo "IMAGE: $IMAGE_NAME, URI: $URI, CONTAINER: $CONTAINER_NAME"
+          echo "URI=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          echo ${{ env.URI }}
           docker build -t $IMAGE_NAME .
         timeout-minutes: 30
 
@@ -79,5 +81,5 @@ jobs:
 
       - name: Push Docker Image
         run: |
-          docker tag $IMAGE_NAME:latest $URI/$IMAGE_NAME:latest
-          docker push $URI/$IMAGE_NAME:latest
+          docker tag $IMAGE_NAME:latest ${{ env.URI }}/$IMAGE_NAME:latest
+          docker push ${{ env.URI }}/$IMAGE_NAME:latest
