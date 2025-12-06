@@ -26,7 +26,7 @@ jobs:
       - name: Build Docker image
         run: |
           echo "IMAGE: $IMAGE_NAME, CONTAINER: $CONTAINER_NAME"
-          URI=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')
+          URI=${{ github.repository }} | awk '{print tolower($0)}'
           echo "URI: ${{ URI }}"
           docker build -t $IMAGE_NAME .
         timeout-minutes: 30
