@@ -17,7 +17,7 @@ jobs:
           password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Run Trivy scan on Docker image (direct scan without pull)
-        uses: aquasecurity/trivy-action@v0.27.0  # Latest version of Trivy
+        uses: aquasecurity/trivy-action@v0.20.0  # Latest version of Trivy
         if: ${{ github.event.workflow_run.conclusion == 'success' }}
         with:
           image: ghcr.io/${{ github.repository }}/fastapi-app:latest
