@@ -26,8 +26,10 @@ jobs:
       - name: Build Docker image
         run: |
           echo "IMAGE: $IMAGE_NAME, CONTAINER: $CONTAINER_NAME"
-          URI=${{ github.repository }} | awk '{print tolower($0)}'
-          echo "URI: ${{ URI }}"
+          URI="${{ github.repository }}"   # Get the repository value
+          LOWERCASE_URI=$(echo "$URI" | awk '{print tolower($0)}')   # Convert to lowercase
+          echo "URI: $LOWERCASE_URI"   # Print the result
+          echo "URI=$LOWERCASE_URI" >> $GITHUB_ENV
           docker build -t $IMAGE_NAME .
         timeout-minutes: 30
 
@@ -81,5 +83,5 @@ jobs:
       - name: Push Docker Image
         run: |
           URI=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')
-          docker tag $IMAGE_NAME:latest ${{ URI }}/$IMAGE_NAME:latest
-          docker push ${{ URI }}/$IMAGE_NAME:latest
+          docker tag $IMAGE_NAME:latest ${{ env.URI }}/$IMAGE_NAME:latest
+          docker push ${{ env.URI }}/$IMAGE_NAME:latest
