@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: fastapi-app
+      URI: ghcr.io/${{ github.repository }}
       CONTAINER_NAME: fastapi-app
 
     steps:
@@ -18,7 +19,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t fastapi-app .
+          docker build -t $IMAGE_NAME .
         timeout-minutes: 30
 
       - name: Log in to GitHub Container Registry
@@ -32,7 +33,47 @@ jobs:
           docker run -d -p 8000:8000 --name $CONTAINER_NAME $IMAGE_NAME
           docker ps
           docker logs $CONTAINER_NAME
+
+          # Set the maximum number of tries
+          MAX_TRIES=5
+          TRY_COUNT=0
+          SUCCESS=0
+          URL="http://localhost:8000/chat"
+          HEADER="Content-Type: application/json"
+          DATA='{"question": "What does Hugging Face provide?", "context": "Hugging Face is a technology company that provides open-source NLP libraries ..."}'
+          
+          # Loop for a set number of tries
+          while [[ $TRY_COUNT -lt $MAX_TRIES ]]; do
+              TRY_COUNT=$((TRY_COUNT + 1))
+          
+              # Send the POST request using curl
+              RESPONSE=$(curl -s -o response.json -w "%{http_code}" -X POST $URL -H "$HEADER" -d "$DATA")
+              echo "Response: $RESPONSE"
+              # Check if the HTTP response code indicates success (e.g., 200 OK)
+              if [[ "$RESPONSE" == "200" ]]; then
+                  echo "Success! Response received: $(cat response.json)"
+                  SUCCESS=1
+                  break
+              else
+                  echo "Attempt $TRY_COUNT/$MAX_TRIES failed. HTTP Response Code: $RESPONSE"
+              fi
+          
+              # Wait for a short time before trying again
+              sleep 2
+          done
+          
+          # Print the final outcome
+          if [[ $SUCCESS -eq 0 ]]; then
+              echo "Failed to get a successful response after $MAX_TRIES attempts."
+          else
+              echo "Test passed successfully!"
+          fi
+          
           docker stop $CONTAINER_NAME
           docker rm $CONTAINER_NAME
-          docker push $IMAGE_NAME
         timeout-minutes: 30
+
+      - name: Push Docker Image
+        run: |
+          docker tag $IMAGE_NAME:latest $URI/$IMAGE_NAME:latest
+          docker push $URI/$IMAGE_NAME:latest
