@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: fastapi-app
-      URI: ghcr.io/${{ github.repository }}
       CONTAINER_NAME: fastapi-app
 
     steps:
@@ -26,9 +25,9 @@ jobs:
 
       - name: Build Docker image
         run: |
-          echo "IMAGE: $IMAGE_NAME, URI: $URI, CONTAINER: $CONTAINER_NAME"
-          echo "URI=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-          echo ${{ env.URI }}
+          echo "IMAGE: $IMAGE_NAME, CONTAINER: $CONTAINER_NAME"
+          URI=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')
+          echo "URI: ${{ URI }}"
           docker build -t $IMAGE_NAME .
         timeout-minutes: 30
 
@@ -81,5 +80,6 @@ jobs:
 
       - name: Push Docker Image
         run: |
-          docker tag $IMAGE_NAME:latest ${{ env.URI }}/$IMAGE_NAME:latest
-          docker push ${{ env.URI }}/$IMAGE_NAME:latest
+          URI=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')
+          docker tag $IMAGE_NAME:latest ${{ URI }}/$IMAGE_NAME:latest
+          docker push ${{ URI }}/$IMAGE_NAME:latest
