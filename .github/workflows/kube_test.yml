@@ -55,7 +55,9 @@ jobs:
 
       # Push image to local registry
       - name: Push image to local registry
-        run: docker push localhost:5000/fastapi-app:latest
+        run: |
+          docker push localhost:5000/fastapi-app:latest
+          docker ps
 
       # Deploy Kubernetes manifests using local registry image
       - name: Deploy application
@@ -67,7 +69,11 @@ jobs:
 
       # Wait for pod readiness
       - name: Wait for pod readiness
-        run: kubectl wait --for=condition=ready pod -l app=gpt-hf-pod --timeout=300s
+        run: | 
+          kubectl get pods -l app=gpt-hf-pod -o wide
+          kubectl describe pod -l app=gpt-hf-pod
+          kubectl logs -l app=gpt-hf-pod
+          kubectl wait --for=condition=ready pod -l app=gpt-hf-pod --timeout=600s || kubectl describe pod -l app=gpt-hf-pod
 
       # Debug: show pods and services
       - name: Show pods and services
