@@ -32,8 +32,10 @@ jobs:
       # Install k3d (K3s in Docker)
       - name: Install k3d
         run: |
-          docker system prune -af
-          curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+          {
+            docker system prune -af
+            curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+          } || true
 
       # Create k3d cluster using local registry
       - name: Create k3d cluster
@@ -69,11 +71,13 @@ jobs:
       # Wait for pod readiness
       - name: Wait for pod readiness
         run: | 
-          {sed -i 's|IMAGE_PLACEHOLDER|localhost:5000/fastapi-app:latest|g' deployment.yaml
-          echo "Get pods: " && kubectl get pods -l app=gpt-hf-pod -o wide
-          echo "Describe pods: " && kubectl describe pod -l app=gpt-hf-pod
-          echo "Log pods: " && kubectl logs -l app=gpt-hf-pod
-          kubectl wait --for=condition=ready pod -l app=gpt-hf-pod --timeout=600s || kubectl describe pod -l app=gpt-hf-pod} || true
+          {
+            sed -i 's|IMAGE_PLACEHOLDER|localhost:5000/fastapi-app:latest|g' deployment.yaml
+            echo "Get pods: " && kubectl get pods -l app=gpt-hf-pod -o wide
+            echo "Describe pods: " && kubectl describe pod -l app=gpt-hf-pod
+            echo "Log pods: " && kubectl logs -l app=gpt-hf-pod
+            kubectl wait --for=condition=ready pod -l app=gpt-hf-pod --timeout=600s || kubectl describe pod -l app=gpt-hf-pod
+          } || true
 
       # Debug: show pods and services
       - name: Show pods and services
@@ -94,18 +98,20 @@ jobs:
       # Install Krew + kube-score
       - name: Install Krew and kube-score
         run: |
-          {set -e
-          (
-            cd "$(mktemp -d)" &&
-            OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
-            ARCH="$(uname -m | sed 's/x86_64/amd64/' | sed 's/arm64/arm64/')" &&
-            curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew-${OS}_${ARCH}.tar.gz" &&
-            tar zxvf krew-${OS}_${ARCH}.tar.gz &&
-            ./krew-${OS}_${ARCH} install krew
-          )
-          export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
-          kubectl krew install score
-          kubectl score version} || true
+          {
+            set -e
+            (
+              cd "$(mktemp -d)" &&
+              OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
+              ARCH="$(uname -m | sed 's/x86_64/amd64/' | sed 's/arm64/arm64/')" &&
+              curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew-${OS}_${ARCH}.tar.gz" &&
+              tar zxvf krew-${OS}_${ARCH}.tar.gz &&
+              ./krew-${OS}_${ARCH} install krew
+            )
+            export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+            kubectl krew install score
+            kubectl score version
+          } || true
 
       # Run kube-score
       - name: Run kube-score
