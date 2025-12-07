@@ -12,6 +12,10 @@ spec:
       labels:
         app: gpt-hf-pod
     spec:
+      tolerations:
+      - key: "node.kubernetes.io/disk-pressure"
+        operator: "Exists"
+        effect: "NoSchedule"
       containers:
       - name: gptcontainer
         image: IMAGE_PLACEHOLDER
@@ -36,7 +40,3 @@ spec:
             port: 8000
           initialDelaySeconds: 15
           periodSeconds: 20
-      tolerations:
-      - key: "node.kubernetes.io/disk-pressure"
-        operator: "Exists"
-        effect: "NoSchedule"
