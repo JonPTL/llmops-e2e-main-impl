@@ -25,18 +25,21 @@ jobs:
       # Install k3d (K3s in Docker)
       - name: Install k3d
         run: |
+          docker system prune -af
           curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 
-      # Create k3s cluster
-      - name: Create k3s cluster
+      # Start a local registry
+      - name: Create local registry
+        run: |
+          docker run -d --name k3d-registry -p 5000:5000 registry:2 || true
+
+      # Create k3d cluster using local registry
+      - name: Create k3d cluster
         run: |
           k3d cluster create github-ci \
             --agents 1 \
+            --registry-use k3d-registry:5000 \
             --wait
-
-      # Verify cluster is running
-      - name: Check cluster
-        run: kubectl get nodes -o wide
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
@@ -46,58 +49,44 @@ jobs:
           registry: ghcr.io
 
       # Load docker image into k3s/k3d
-      - name: Load Docker image into k3s cluster
+      - name: Load Docker image
         run: |
-          docker system prune -af
           docker pull ${{ steps.get_lowercase_uri.outputs.lowercase_uri }}/fastapi-app:latest
-          k3d image import ${{ steps.get_lowercase_uri.outputs.lowercase_uri }}/fastapi-app:latest -c github-ci
-          echo "Verifying image import..."
-          kubectl get pods -A
 
-      # Deploy Kubernetes manifests
+      # Tag image for local registry
+      - name: Tag image for local registry
+        run: docker tag ghcr.io/a/b/c:latest localhost:5000/c:latest
+
+      # Push image to local registry
+      - name: Push image to local registry
+        run: docker push localhost:5000/c:latest
+
+      # Deploy Kubernetes manifests using local registry image
       - name: Deploy application
         run: |
+          sed -i 's|ghcr.io/a/b/c:latest|localhost:5000/c:latest|g' deployment.yaml
           kubectl apply -f deployment.yaml
           kubectl apply -f service.yaml
 
-      # Wait for pod to start
-      - name: Wait for pod to start
-        run: |
-          for i in {1..60}; do
-            POD_STATUS=$(kubectl get pod -l app=gpt-hf-pod -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "Pending")
-            echo "Pod status: $POD_STATUS"
-            if [[ "$POD_STATUS" == "Running" ]]; then
-              break
-            fi
-            sleep 5
-          done
-
-      # Wait for readiness
+      # Wait for pod readiness
       - name: Wait for pod readiness
         run: kubectl wait --for=condition=ready pod -l app=gpt-hf-pod --timeout=300s
 
-      # Debug: show pods & services
-      - name: Debug Kubernetes resources
+      # Debug: show pods and services
+      - name: Show pods and services
         run: |
-          echo "--- Nodes ---"
           kubectl get nodes -o wide
-          echo "--- Pods ---"
           kubectl get pods -o wide
-          echo "--- Services ---"
           kubectl get svc -o wide
 
-      # Test API *inside cluster* (no ingress/egress needed)
-      - name: Test service inside cluster
+      # Test API inside cluster (internal pod)
+      - name: Test API inside cluster
         run: |
-          SERVICE="gpt-hf-service"
-          PORT=8000
-
-          echo "Hitting service internally..."
           kubectl run curl-test --rm -i --tty --restart=Never \
             --image=curlimages/curl \
-            -- curl -s -X POST http://$SERVICE:$PORT/chat \
-            -H "Content-Type: application/json" \
-            -d '{"question":"What does Hugging Face provide?","context":"Hugging Face is a technology company..."}'
+            -- curl -s -X POST http://gpt-hf-service:8000/chat \
+              -H "Content-Type: application/json" \
+              -d '{"question":"What does Hugging Face provide?","context":"Hugging Face is a technology company..."}'
 
       # Install Krew + kube-score
       - name: Install Krew and kube-score
@@ -111,7 +100,6 @@ jobs:
             tar zxvf krew-${OS}_${ARCH}.tar.gz &&
             ./krew-${OS}_${ARCH} install krew
           )
-
           export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
           kubectl krew install score
           kubectl score version
@@ -122,10 +110,12 @@ jobs:
           export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
           kubectl score score --output-format ci deployment.yaml || true
 
-      # Delete k3s cluster (always)
-      - name: Cleanup cluster
+      # Cleanup cluster and registry
+      - name: Cleanup k3d cluster and registry
         if: always()
-        run: k3d cluster delete github-ci
+        run: |
+          k3d cluster delete github-ci || true
+          docker rm -f k3d-registry || true
 
   failure-message:
     runs-on: ubuntu-latest
