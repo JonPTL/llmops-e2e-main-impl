@@ -30,7 +30,7 @@ jobs:
         with:
           image-ref: ${{ steps.get_lowercase_uri.outputs.lowercase_uri }}/fastapi-app:latest
           format: table  # Optional: Output format (can be 'json', 'table', or 'sarif')
-          severity: HIGH, CRITICAL # Optional: Filter based on severity (LOW, MEDIUM, HIGH, CRITICAL)
+          severity: HIGH,CRITICAL # Optional: Filter based on severity (LOW, MEDIUM, HIGH, CRITICAL)
           vuln-type: os,library
           scanners: vuln
           timeout: 300s
