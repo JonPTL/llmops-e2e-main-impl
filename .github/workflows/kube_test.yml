@@ -61,6 +61,7 @@ jobs:
       - name: Deploy application
         run: |
           sed -i 's|IMAGE_PLACEHOLDER|localhost:5000/fastapi-app:latest|g' deployment.yaml
+          cat deploment.yaml
           kubectl apply -f deployment.yaml
           kubectl apply -f service.yaml
 
