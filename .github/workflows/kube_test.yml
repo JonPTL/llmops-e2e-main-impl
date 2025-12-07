@@ -22,31 +22,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install k3d (K3s in Docker)
-      - name: Install k3d
-        run: |
-          docker system prune -af
-          curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-
-      # Start a local registry
-      - name: Create local registry
-        run: |
-          docker run -d --name k3d-registry -p 5000:5000 registry:2 || true
-
-      # Create k3d cluster using local registry
-      - name: Create k3d cluster
-        run: |
-          k3d cluster create github-ci \
-            --agents 1 \
-            --registry-use k3d-registry:5000 \
-            --wait
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
         with:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
           registry: ghcr.io
+
+      # Install k3d (K3s in Docker)
+      - name: Install k3d
+        run: |
+          docker system prune -af
+          curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+      # Create k3d cluster using local registry
+      - name: Create k3d cluster
+        run: |
+          # Create cluster + managed registry
+          k3d cluster create github-ci \
+            --agents 1 \
+            --registry-create k3d-registry:5000 \
+            --wait
 
       # Load docker image into k3s/k3d
       - name: Load Docker image
