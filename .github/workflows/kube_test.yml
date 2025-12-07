@@ -65,7 +65,7 @@ jobs:
           sed -i 's|IMAGE_PLACEHOLDER|localhost:5000/fastapi-app:latest|g' deployment.yaml
           kubectl apply -f deployment.yaml
           kubectl apply -f service.yaml
-          cat deploment.yaml
+          cat deployment.yaml || true
 
       # Wait for pod readiness
       - name: Wait for pod readiness
