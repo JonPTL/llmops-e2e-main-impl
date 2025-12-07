@@ -17,10 +17,17 @@ jobs:
           password: ${{ secrets.GHCR_TOKEN }}
           registry: ghcr.io
 
+      - name: Get lowercase URI
+        id: get_lowercase_uri
+        run: |
+          URI="ghcr.io/${{ github.repository }}" # Get the repository value
+          LOWERCASE_URI=$(echo "$URI" | awk '{print tolower($0)}') # Convert to lowercase
+          echo "lowercase_uri=$LOWERCASE_URI" >> $GITHUB_OUTPUT
+
       - name: Run Trivy scan on Docker image (direct scan without pull)
         uses: aquasecurity/trivy-action@0.20.0
         with:
-          image-ref: ghcr.io/${{ github.repository }}/fastapi-app:latest
+          image-ref: ghcr.io/${{ steps.get_lowercase_uri.outputs.lowercase_uri }}/fastapi-app:latest
           format: 'table'  # Optional: Output format (can be 'json', 'table', or 'sarif')
           severity: 'HIGH, CRITICAL' # Optional: Filter based on severity (LOW, MEDIUM, HIGH, CRITICAL)
 
