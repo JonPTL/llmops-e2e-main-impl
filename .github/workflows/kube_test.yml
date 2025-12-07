@@ -51,16 +51,16 @@ jobs:
 
       # Tag image for local registry
       - name: Tag image for local registry
-        run: docker tag ghcr.io/a/b/c:latest localhost:5000/c:latest
+        run: docker tag ${{ steps.get_lowercase_uri.outputs.lowercase_uri }}/fastapi-app:latest localhost:5000/fastapi-app:latest
 
       # Push image to local registry
       - name: Push image to local registry
-        run: docker push localhost:5000/c:latest
+        run: docker push localhost:5000/fastapi-app:latest
 
       # Deploy Kubernetes manifests using local registry image
       - name: Deploy application
         run: |
-          sed -i 's|ghcr.io/a/b/c:latest|localhost:5000/c:latest|g' deployment.yaml
+          sed -i 's|${{ steps.get_lowercase_uri.outputs.lowercase_uri }}/fastapi-app:latest|localhost:5000/fastapi-app:latest|g' deployment.yaml
           kubectl apply -f deployment.yaml
           kubectl apply -f service.yaml
 
