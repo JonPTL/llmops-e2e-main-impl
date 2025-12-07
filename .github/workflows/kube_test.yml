@@ -60,7 +60,7 @@ jobs:
       # Deploy Kubernetes manifests using local registry image
       - name: Deploy application
         run: |
-          sed -i 's|${{ steps.get_lowercase_uri.outputs.lowercase_uri }}/fastapi-app:latest|localhost:5000/fastapi-app:latest|g' deployment.yaml
+          sed -i 's|IMAGE_PLACEHOLDER|localhost:5000/fastapi-app:latest|g' deployment.yaml
           kubectl apply -f deployment.yaml
           kubectl apply -f service.yaml
 
