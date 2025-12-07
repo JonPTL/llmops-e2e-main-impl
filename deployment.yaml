@@ -7,6 +7,10 @@ spec:
   selector:
     matchLabels:
       app: gpt-hf-pod
+  tolerations:
+  - key: "node.kubernetes.io/disk-pressure"
+    operator: "Exists"
+    effect: "NoSchedule"
   template:
     metadata:
       labels:
