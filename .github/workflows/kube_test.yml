@@ -1,15 +1,14 @@
 name: Kube and Test
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_run:
+    workflows: ["Scan"]
+    types: [completed]
 
 jobs:
   test-k3s:
     runs-on: ubuntu-latest
-
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Get lowercase URI
         id: get_lowercase_uri
@@ -118,3 +117,12 @@ jobs:
       - name: Cleanup cluster
         if: always()
         run: k3d cluster delete github-ci
+
+  failure-message:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - name: Previous workflow failed
+        run: |
+          echo "Previous workflow failed" 
+          exit 1
