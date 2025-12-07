@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows: ["Build and Deploy"]
     types: [completed]
+  workflow_dispatch:
 
 jobs:
   scan:
@@ -28,8 +29,15 @@ jobs:
         uses: aquasecurity/trivy-action@0.20.0
         with:
           image-ref: ${{ steps.get_lowercase_uri.outputs.lowercase_uri }}/fastapi-app:latest
-          format: 'table'  # Optional: Output format (can be 'json', 'table', or 'sarif')
-          severity: 'HIGH, CRITICAL' # Optional: Filter based on severity (LOW, MEDIUM, HIGH, CRITICAL)
+          format: table  # Optional: Output format (can be 'json', 'table', or 'sarif')
+          severity: HIGH, CRITICAL # Optional: Filter based on severity (LOW, MEDIUM, HIGH, CRITICAL)
+          vuln-type: os,library
+          scanners: vuln
+          timeout: 300s
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}   # needed for private GHCR images
+          TRIVY_PASSWORD: ${{ secrets.GHCR_TOKEN }}
+          TRIVY_RUN_AS_PLUGIN: "true"           # forces remote scan mode
 
   failure-message:
     runs-on: ubuntu-latest
