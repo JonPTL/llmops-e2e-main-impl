@@ -33,6 +33,7 @@ jobs:
           severity: HIGH,CRITICAL # Optional: Filter based on severity (LOW, MEDIUM, HIGH, CRITICAL)
           vuln-type: os,library
           scanners: vuln
+          scan-type: image
           timeout: 300s
         env:
           TRIVY_USERNAME: ${{ github.actor }}   # needed for private GHCR images
