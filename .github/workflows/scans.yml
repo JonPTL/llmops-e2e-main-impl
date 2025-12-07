@@ -37,7 +37,6 @@ jobs:
         env:
           TRIVY_USERNAME: ${{ github.actor }}   # needed for private GHCR images
           TRIVY_PASSWORD: ${{ secrets.GHCR_TOKEN }}
-          TRIVY_RUN_AS_PLUGIN: "true"           # forces remote scan mode
 
   failure-message:
     runs-on: ubuntu-latest
