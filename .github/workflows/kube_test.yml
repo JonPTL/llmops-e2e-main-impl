@@ -1,0 +1,120 @@
+name: Kube and Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-k3s:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get lowercase URI
+        id: get_lowercase_uri
+        run: |
+          URI="ghcr.io/${{ github.repository }}" # Get the repository value
+          LOWERCASE_URI=$(echo "$URI" | awk '{print tolower($0)}') # Convert to lowercase
+          echo "lowercase_uri=$LOWERCASE_URI" >> $GITHUB_OUTPUT
+
+      # Checkout source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install k3d (K3s in Docker)
+      - name: Install k3d
+        run: |
+          curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+      # Create k3s cluster
+      - name: Create k3s cluster
+        run: |
+          k3d cluster create github-ci \
+            --agents 1 \
+            --wait
+
+      # Verify cluster is running
+      - name: Check cluster
+        run: kubectl get nodes -o wide
+
+      # Load docker image into k3s/k3d
+      - name: Load Docker image into k3s cluster
+        run: |
+          docker pull ${{ steps.get_lowercase_uri.outputs.lowercase_uri }}/fastapi-app:latest
+          k3d image import ${{ steps.get_lowercase_uri.outputs.lowercase_uri }}/fastapi-app:latest -c github-ci
+          echo "Verifying image import..."
+          kubectl get pods -A
+
+      # Deploy Kubernetes manifests
+      - name: Deploy application
+        run: |
+          kubectl apply -f deployment.yaml
+          kubectl apply -f service.yaml
+
+      # Wait for pod to start
+      - name: Wait for pod to start
+        run: |
+          for i in {1..60}; do
+            POD_STATUS=$(kubectl get pod -l app=gpt-hf-pod -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "Pending")
+            echo "Pod status: $POD_STATUS"
+            if [[ "$POD_STATUS" == "Running" ]]; then
+              break
+            fi
+            sleep 5
+          done
+
+      # Wait for readiness
+      - name: Wait for pod readiness
+        run: kubectl wait --for=condition=ready pod -l app=gpt-hf-pod --timeout=300s
+
+      # Debug: show pods & services
+      - name: Debug Kubernetes resources
+        run: |
+          echo "--- Nodes ---"
+          kubectl get nodes -o wide
+          echo "--- Pods ---"
+          kubectl get pods -o wide
+          echo "--- Services ---"
+          kubectl get svc -o wide
+
+      # Test API *inside cluster* (no ingress/egress needed)
+      - name: Test service inside cluster
+        run: |
+          SERVICE="gpt-hf-service"
+          PORT=8000
+
+          echo "Hitting service internally..."
+          kubectl run curl-test --rm -i --tty --restart=Never \
+            --image=curlimages/curl \
+            -- curl -s -X POST http://$SERVICE:$PORT/chat \
+            -H "Content-Type: application/json" \
+            -d '{"question":"What does Hugging Face provide?","context":"Hugging Face is a technology company..."}'
+
+      # Install Krew + kube-score
+      - name: Install Krew and kube-score
+        run: |
+          set -e
+          (
+            cd "$(mktemp -d)" &&
+            OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
+            ARCH="$(uname -m | sed 's/x86_64/amd64/' | sed 's/arm64/arm64/')" &&
+            curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew-${OS}_${ARCH}.tar.gz" &&
+            tar zxvf krew-${OS}_${ARCH}.tar.gz &&
+            ./krew-${OS}_${ARCH} install krew
+          )
+
+          export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+          kubectl krew install score
+          kubectl score version
+
+      # Run kube-score
+      - name: Run kube-score
+        run: |
+          export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+          kubectl score score --output-format ci deployment.yaml || true
+
+      # Delete k3s cluster (always)
+      - name: Cleanup cluster
+        if: always()
+        run: k3d cluster delete github-ci
